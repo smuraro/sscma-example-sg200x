@@ -128,9 +128,9 @@ api_status_t api_device::queryDeviceInfo(request_t req, response_t res)
         if (sensor == 0) {
             model_type += " (No Sensor)";
         } else if (sensor == 1) {
-            model_type += " (OV5647)";
+            model_type += " (GC2083)";
         } else if (sensor == 2) {
-            model_type += " (GC2053)";
+            model_type += " (OV5647)";
         }
 
         data["type"] = model_type;

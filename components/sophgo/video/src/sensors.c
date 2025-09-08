@@ -86,6 +86,10 @@ ISP_SNS_OBJ_S* app_ipcam_SnsObj_Get(SENSOR_TYPE_E enSnsType)
     case SENSOR_GCORE_GC2053_SLAVE:
         return &stSnsGc2053_Slave_Obj;
 #endif
+#ifdef SNS0_GCORE_GC2083
+    case SENSOR_GCORE_GC2083:
+        return &stSnsGc2083_Obj;
+#endif
 #ifdef SNS0_GCORE_GC2093
     case SENSOR_GCORE_GC2093:
         return &stSnsGc2093_Obj;
@@ -329,6 +333,7 @@ CVI_S32 app_ipcam_Vi_DevAttr_Get(SENSOR_TYPE_E enSnsType, VI_DEV_ATTR_S* pstViDe
     case SENSOR_GCORE_GC2053:
     case SENSOR_GCORE_GC2053_1L:
     case SENSOR_GCORE_GC2053_SLAVE:
+    case SENSOR_GCORE_GC2083:
     case SENSOR_GCORE_GC2093:
     case SENSOR_GCORE_GC4023:
     case SENSOR_GCORE_GC2093_SLAVE:
@@ -459,6 +464,7 @@ CVI_S32 app_ipcam_Vi_PipeAttr_Get(SENSOR_TYPE_E enSnsType, VI_PIPE_ATTR_S* pstVi
     case SENSOR_GCORE_GC2053_1L:
     case SENSOR_OV_OV5647:
     case SENSOR_GCORE_GC2053_SLAVE:
+    case SENSOR_GCORE_GC2083:
     case SENSOR_GCORE_GC2093:
     case SENSOR_GCORE_GC2093_SLAVE:
     case SENSOR_GCORE_GC4023:
@@ -548,6 +554,7 @@ CVI_S32 app_ipcam_Vi_ChnAttr_Get(SENSOR_TYPE_E enSnsType, VI_CHN_ATTR_S* pstViCh
     case SENSOR_GCORE_GC2053:
     case SENSOR_GCORE_GC2053_1L:
     case SENSOR_GCORE_GC2053_SLAVE:
+    case SENSOR_GCORE_GC2083:
     case SENSOR_GCORE_GC2093:
     case SENSOR_GCORE_GC2093_SLAVE:
     case SENSOR_GCORE_GC4023:
@@ -630,6 +637,7 @@ CVI_S32 app_ipcam_Isp_InitAttr_Get(SENSOR_TYPE_E enSnsType, WDR_MODE_E enWDRMode
     case SENSOR_GCORE_GC2053_1L:
     case SENSOR_OV_OV5647:
     case SENSOR_GCORE_GC2053_SLAVE:
+    case SENSOR_GCORE_GC2083:
     case SENSOR_GCORE_GC2093:
     case SENSOR_GCORE_GC2093_SLAVE:
     case SENSOR_GCORE_GC4023:
@@ -730,6 +738,7 @@ CVI_S32 app_ipcam_Isp_PubAttr_Get(SENSOR_TYPE_E enSnsType, ISP_PUB_ATTR_S* pstIs
     case SENSOR_GCORE_GC2053:
     case SENSOR_GCORE_GC2053_1L:
     case SENSOR_GCORE_GC2053_SLAVE:
+    case SENSOR_GCORE_GC2083:
     case SENSOR_GCORE_GC2093:
     case SENSOR_GCORE_GC4023:
     case SENSOR_GCORE_GC2093_SLAVE:
