@@ -20,7 +20,7 @@ readonly MODELS_PRESET="/usr/share/supervisor/models"
 _check_flow() {
     local src_flow="/usr/share/supervisor/flows.json"
     local src_flow_gimbal="/usr/share/supervisor/flows_gimbal.json"
-    local dst_flow="/home/recamera/.node-red/flows.json"
+    local dst_flow="/root/.node-red/flows.json"
 
     [[ ! -f "$dst_flow" ]] && {
         [ -n "$(ifconfig can0 2>/dev/null | grep "HWaddr")" ] && {
