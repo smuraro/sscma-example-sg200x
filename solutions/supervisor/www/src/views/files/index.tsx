@@ -356,7 +356,7 @@ const Files = () => {
     BreadcrumbProps["items"]
   > => {
     const pathParts = currentPath ? currentPath.split("/") : [];
-    const rootTitle = currentStorage === "local" ? "/userdata" : "/mnt/sd";
+    const rootTitle = currentStorage === "local" ? "/root" : "/mnt/sd";
     const items: NonNullable<BreadcrumbProps["items"]> = [
       {
         title: rootTitle,

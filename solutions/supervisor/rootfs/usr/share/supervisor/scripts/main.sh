@@ -7,12 +7,12 @@ readonly STR_FAILED="Failed"
 # conf
 readonly ISSUE_FILE="/etc/issue"
 readonly HOSTNAME_FILE="/etc/hostname"
-readonly USER_NAME="recamera"
+readonly USER_NAME="root"
 readonly CONFIG_DIR="/etc/recamera.conf"
 readonly CONF_UPGRADE="$CONFIG_DIR/upgrade"
 
 # userdata
-readonly USERDATA_DIR="/userdata"
+readonly USERDATA_DIR="/root"
 readonly MODEL_DIR="$USERDATA_DIR/Models"
 readonly MODELS_PRESET="/usr/share/supervisor/models"
 
@@ -310,7 +310,7 @@ EOF
 
 ##################################################
 # user
-readonly SSH_DIR="/home/$USER_NAME/.ssh"
+readonly SSH_DIR="/root/.ssh"
 readonly SSH_KEY_FILE="$SSH_DIR/authorized_keys"
 readonly FIRST_LOGIN="/etc/.first_login"
 readonly DIR_INID="/etc/init.d"
