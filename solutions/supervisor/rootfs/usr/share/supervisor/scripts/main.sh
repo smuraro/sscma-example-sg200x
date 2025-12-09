@@ -279,8 +279,9 @@ function api_device() {
     local emmc=$(lsblk -b | grep -w mmcblk0 | awk '{print $4}')
     emmc=${emmc:-0}
     local sensor=0
-    [[ -n "$(i2cdetect -y -r 2 36 36 | grep 36)" ]] && sensor=1
-    [[ -n "$(i2cdetect -y -r 2 3f 3f | grep 3f)" ]] && sensor=2
+    [[ -n "$(i2cdetect -y -r 3 37 37 | grep 37)" ]] && sensor=1
+    [[ -n "$(i2cdetect -y -r 2 36 36 | grep 36)" ]] && sensor=2
+
 
     cat <<EOF
 {
