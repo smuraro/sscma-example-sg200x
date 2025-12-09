@@ -1451,7 +1451,7 @@
         "name": "Confidence",
         "label": "Confidence",
         "tooltip": "",
-        "order": 8,
+        "order": 7,
         "width": 0,
         "height": 0,
         "passthru": false,
@@ -1485,7 +1485,7 @@
         "name": "IoU",
         "label": "IoU",
         "tooltip": "",
-        "order": 7,
+        "order": 6,
         "width": 0,
         "height": 0,
         "passthru": false,
@@ -1548,8 +1548,8 @@
         "volume": "50",
         "option": "0",
         "fps": "30",
-        "mirror": false,
-        "flip": false,
+        "mirror": true,
+        "flip": true,
         "x": 320,
         "y": 140,
         "wires": [
@@ -1580,106 +1580,6 @@
         "y": 120,
         "wires": [
             []
-        ]
-    },
-    {
-        "id": "7a452f859f55f521",
-        "type": "light",
-        "z": "4faa963833a046c7",
-        "light": false,
-        "x": 490,
-        "y": 880,
-        "wires": []
-    },
-    {
-        "id": "c93961505860fc1e",
-        "type": "switch",
-        "z": "4faa963833a046c7",
-        "name": "",
-        "property": "payload",
-        "propertyType": "msg",
-        "rules": [
-            {
-                "t": "eq",
-                "v": "on",
-                "vt": "str"
-            },
-            {
-                "t": "eq",
-                "v": "off",
-                "vt": "str"
-            }
-        ],
-        "checkall": "true",
-        "repair": false,
-        "outputs": 2,
-        "x": 310,
-        "y": 880,
-        "wires": [
-            [
-                "7a452f859f55f521"
-            ],
-            [
-                "7a452f859f55f521"
-            ]
-        ]
-    },
-    {
-        "id": "829d1c3a37d1ea07",
-        "type": "inject",
-        "z": "4faa963833a046c7",
-        "name": "",
-        "props": [
-            {
-                "p": "payload"
-            },
-            {
-                "p": "topic",
-                "vt": "str"
-            }
-        ],
-        "repeat": "",
-        "crontab": "",
-        "once": false,
-        "onceDelay": 0.1,
-        "topic": "",
-        "payload": "on",
-        "payloadType": "str",
-        "x": 150,
-        "y": 800,
-        "wires": [
-            [
-                "c93961505860fc1e"
-            ]
-        ]
-    },
-    {
-        "id": "4807108d10230288",
-        "type": "inject",
-        "z": "4faa963833a046c7",
-        "name": "",
-        "props": [
-            {
-                "p": "payload"
-            },
-            {
-                "p": "topic",
-                "vt": "str"
-            }
-        ],
-        "repeat": "",
-        "crontab": "",
-        "once": false,
-        "onceDelay": 0.1,
-        "topic": "",
-        "payload": "off",
-        "payloadType": "str",
-        "x": 150,
-        "y": 900,
-        "wires": [
-            [
-                "c93961505860fc1e"
-            ]
         ]
     },
     {
@@ -1831,16 +1731,6 @@
         ]
     },
     {
-        "id": "b4ac7cb768dea76a",
-        "type": "comment",
-        "z": "4faa963833a046c7",
-        "name": "Light Instruction",
-        "info": "You can control the fill light by this node.\n\nYou can also change the previous nodes to other functions to control the light on/off based on time or other occations. ",
-        "x": 160,
-        "y": 740,
-        "wires": []
-    },
-    {
         "id": "b70724535775eabb",
         "type": "comment",
         "z": "4faa963833a046c7",
@@ -1855,8 +1745,8 @@
         "type": "subflow:ec72740f78e40785",
         "z": "4faa963833a046c7",
         "name": "",
-        "x": 160,
-        "y": 580,
+        "x": 150,
+        "y": 340,
         "wires": []
     },
     {
@@ -1864,8 +1754,8 @@
         "type": "subflow:91fe3dae2d3749fd",
         "z": "4faa963833a046c7",
         "name": "",
-        "x": 140,
-        "y": 660,
+        "x": 130,
+        "y": 400,
         "wires": []
     },
     {
@@ -1943,14 +1833,13 @@
         "disabled": "false"
     },
     {
-        "id": "ea08312301a36408",
+        "id": "f507170635a16302",
         "type": "global-config",
         "env": [],
         "modules": {
-            "@flowfuse/node-red-dashboard": "1.26.0",
+            "@flowfuse/node-red-dashboard": "1.29.0",
             "node-red-contrib-os": "0.2.1",
-            "node-red-contrib-sscma": "0.3.5",
-            "node-red-contrib-seeed-recamera": "0.0.8"
+            "node-red-contrib-sscma": "0.3.5"
         }
     }
 ]
