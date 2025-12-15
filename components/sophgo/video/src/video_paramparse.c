@@ -314,7 +314,7 @@ int app_ipcam_Param_setVencChnType(int ch, PAYLOAD_TYPE_E enType) {
     return CVI_SUCCESS;
 }
 
-static const APP_PARAM_SNS_CFG_T* supported_sensors[] = {&sns_cfg_gc2083, &sns_cfg_ov5647};
+static const APP_PARAM_SNS_CFG_T* supported_sensors[] = {&sns_cfg_gc2083};
 static const APP_PARAM_SNS_CFG_T* vi_sensor_identify(void) {
     VI_PIPE ViPipe = 0;
     CVI_S32 s32Ret = CVI_SUCCESS;
@@ -343,10 +343,10 @@ static const APP_PARAM_SNS_CFG_T* vi_sensor_identify(void) {
         }
 
         if (pfnSnsObj->pfnSnsProbe) {
-            s32Ret = pfnSnsObj->pfnSnsProbe(ViPipe);
-            if (s32Ret == CVI_SUCCESS) {
+            //s32Ret = pfnSnsObj->pfnSnsProbe(ViPipe);
+            //if (s32Ret == CVI_SUCCESS) {
                 return pstSnsCfg;
-            }
+            //}
         }
     }
 
