@@ -2,18 +2,14 @@ import { useState, useEffect, useRef } from "react";
 import {
   Modal,
   Button,
-  Input,
   ConfigProvider,
   Spin,
   message,
   ButtonProps,
+  Tabs,
 } from "antd";
 import {
-  PlusCircleOutlined,
   WifiOutlined,
-  SyncOutlined,
-  EditOutlined,
-  DeleteOutlined,
   UserOutlined,
   LeftOutlined,
   RightOutlined,
@@ -39,15 +35,19 @@ import {
   createAppApi,
   viewAppApi,
   updateAppApi,
-  deleteAppApi,
   getSensecraftUserInfoApi,
   acquireFileUrlApi,
-  removeFileApi,
   applyModelApi,
 } from "@/api/sensecraft";
+import { getModelApi, getModelV2Api } from "@/api/model";
 import recamera_logo from "@/assets/images/recamera_logo.png";
 import { IAppInfo, IModelData, IActionInfo } from "@/api/sensecraft/sensecraft";
-import { sensecraftAuthorize, parseUrlParam, DefaultFlowData } from "@/utils";
+import {
+  sensecraftAuthorize,
+  parseUrlParam,
+  DefaultFlowData,
+  DefaultFlowDataWithDashboard,
+} from "@/utils";
 import usePlatformStore, {
   savePlatformInfo,
   initPlatformStore,
@@ -58,6 +58,8 @@ import useConfigStore from "@/store/config";
 import { getToken } from "@/store/user";
 import Network from "@/views/network";
 import NodeRed from "@/views/nodered";
+import ApplicationList from "./ApplicationList";
+import ModelConversion from "./ModelConversion";
 import styles from "./index.module.css";
 
 // 定义 type 优先级
@@ -85,7 +87,6 @@ const Workspace = () => {
 
   const [isNetworkModalOpen, setIsNetworkModalOpen] = useState(false);
 
-  const [applist, setApplist] = useState<IAppInfo[]>([]);
   const [devicelist, setDevicelist] = useState<IIPDevice[]>([]);
 
   const [isExpand, setIsExpand] = useState(true);
@@ -95,38 +96,83 @@ const Workspace = () => {
   const [deviceListRefreshing, setDeviceListRefreshing] = useState(false);
   const [loadingTip, setLoadingTip] = useState("");
 
-  const [focusAppid, setFocusAppid] = useState("");
   const revRef = useRef<string>("");
-  const inputRef = useRef<string>("");
 
   const [timestamp, setTimestamp] = useState<number>(1);
 
-  const [appListLoading, setAppListLoading] = useState(false);
   const [userInfoLoading, setUserInfoLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>("application");
+  const uploadAbortRef = useRef<AbortController | null>(null);
+
+  const waitForDashboardReady = async (
+    ip: string,
+    timeoutMs = 30000,
+    intervalMs = 1500
+  ) => {
+    const url = `http://${ip}:1880/dashboard`;
+    const start = Date.now();
+
+    while (Date.now() - start < timeoutMs) {
+      try {
+        const res = await fetch(url, { method: "GET" });
+        if (res.ok && (res.status === 200 || res.status === 204)) {
+          return true;
+        }
+      } catch (error) {
+        // ignore and retry
+      }
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    }
+    return false;
+  };
+
   useEffect(() => {
     const initPlatform = async () => {
       const param = parseUrlParam(window.location.href);
       const token_url = param.token;
       const refresh_token = param.refresh_token;
-      const action = param.action; //new / app / clone / model /normal  action为空默认为normal
+      const action = param.action; //new / app / clone / model / train /normal  action为空默认为normal
       const app_id = param.app_id; //type为app时才需要传
-      const model_id = param.model_id; //type为model时才需要传
+      const model_id = param.model_id; //type为model或train时才需要传
+      const model_name = param.model_name; //type为train时才需要传
 
+      if (action) {
+        sessionStorage.removeItem("sensecraft_action");
+      }
       let actionInfo;
       if (action) {
         actionInfo = {
           action: action,
           app_id: app_id,
           model_id: model_id,
+          model_name: model_name,
         };
       } else {
-        actionInfo = {
-          action: "normal",
-        };
+        const cachedAction = sessionStorage.getItem("sensecraft_action");
+        if (cachedAction) {
+          try {
+            actionInfo = JSON.parse(cachedAction);
+          } catch (error) {
+            actionInfo = {
+              action: "normal",
+            };
+          }
+          sessionStorage.removeItem("sensecraft_action");
+        } else {
+          actionInfo = {
+            action: "normal",
+          };
+        }
       }
 
       if (token_url && refresh_token) {
         await initPlatformStore(token_url, refresh_token);
+        if (actionInfo?.action && actionInfo.action !== "normal") {
+          sessionStorage.setItem(
+            "sensecraft_action",
+            JSON.stringify(actionInfo)
+          );
+        }
         setActionInfo(actionInfo);
         savePlatformInfo();
         const currentUrl = window.location.href;
@@ -210,16 +256,16 @@ const Workspace = () => {
   useEffect(() => {
     if (token && deviceInfo?.ip) {
       getSensecraftUserInfo();
-      getAppList();
     }
   }, [deviceInfo?.ip, token]);
 
   useEffect(() => {
     const initAction = async () => {
       if (actionInfo?.action && token) {
-        const action = actionInfo.action; //new / app / clone / model /normal  action为空默认为normal
+        const action = actionInfo.action; //new / app / clone / model / train /normal  action为空默认为normal
         const app_id = actionInfo.app_id; //type为app时才需要传
-        const model_id = actionInfo.model_id; //type为model时才需要传
+        const model_id = actionInfo.model_id; //type为model或train时才需要传
+        const model_name = actionInfo.model_name; //type为train时才需要传
         if (action == "app") {
           if (app_id) {
             //打开云端应用
@@ -240,6 +286,13 @@ const Workspace = () => {
             //获取模型详情
             deployAndCreateAppForSensecraft(model_id);
           }
+        } else if (action == "train") {
+          //训练模型
+          if (model_id) {
+            //获取模型文件并上传到设备
+            handleTrainModel(model_id, model_name);
+          }
+          sessionStorage.removeItem("sensecraft_action");
         } else if (action == "normal") {
           checkAndSyncAppData();
         }
@@ -263,23 +316,6 @@ const Workspace = () => {
       console.log(error);
     } finally {
       setUserInfoLoading(false);
-    }
-  };
-
-  // 获取应用列表
-  const getAppList = async () => {
-    try {
-      setAppListLoading(true);
-      const response = await getAppListApi();
-      if (response.code == 0) {
-        const data = response.data;
-        const list = data.list;
-        setApplist(list);
-      }
-    } catch (error) {
-      setApplist([]);
-    } finally {
-      setAppListLoading(false);
     }
   };
 
@@ -335,7 +371,12 @@ const Workspace = () => {
             formData.append("model_file", blob); // 文件名可以根据需要修改
           }
           formData.append("model_info", JSON.stringify(model_data));
-          const resp = await uploadModelApi(formData);
+
+          // 使用分片上传并显示进度
+          const resp = await uploadModelApi(formData, (progress) => {
+            setLoadingTip(`Uploading model to reCamera: ${progress.toFixed(1)}%`);
+          });
+
           setLoading(false);
           setLoadingTip("");
           const ret = resp.code == 0;
@@ -518,6 +559,7 @@ const Workspace = () => {
       setLoadingTip("Deploying model");
       // 获取模型下载地址
       const response = await applyModelApi(model_id);
+      console.info("model:apply_response", response);
       if (response.code == 0) {
         const data = response.data;
         const model_snapshot = data.model_snapshot;
@@ -525,11 +567,53 @@ const Workspace = () => {
           //上传设备本地
           const ret = await uploadModel(model_snapshot);
           if (ret) {
-            await createAppAndUpdateFlow({
-              flow_data: DefaultFlowData,
+            const taskType = model_snapshot?.arguments?.task;
+            const modelFormat = model_snapshot?.model_format?.toLowerCase();
+            const useDashboardFlow =
+              taskType === "classify" && modelFormat === "cvimodel";
+            let flowData = useDashboardFlow
+              ? DefaultFlowDataWithDashboard
+              : DefaultFlowData;
+            try {
+              const flowObj = JSON.parse(flowData);
+              if (Array.isArray(flowObj)) {
+                const updated = flowObj.map((node: Record<string, unknown>) => {
+                  if (node.type === "model") {
+                    return {
+                      ...node,
+                      model: model_snapshot?.model_name || node.model,
+                      classes: Array.isArray(model_snapshot?.classes)
+                        ? model_snapshot.classes.join(",")
+                        : node.classes,
+                      uri: "",
+                    };
+                  }
+                  return node;
+                });
+                flowData = JSON.stringify(updated);
+              }
+            } catch (error) {
+              console.warn("model:update_flow_model_failed", error);
+            }
+            const ok = await createAppAndUpdateFlow({
+              flow_data: flowData,
               model_data: model_snapshot,
               needUpdateFlow: true,
             });
+            if (
+              ok &&
+              useDashboardFlow &&
+              deviceInfo?.ip
+            ) {
+              setLoadingTip("Waiting for dashboard");
+              const ready = await waitForDashboardReady(deviceInfo.ip);
+              if (ready) {
+                sessionStorage.removeItem("sensecraft_action");
+                window.location.href = `http://${deviceInfo.ip}/#/dashboard`;
+              } else {
+                messageApi.warning("Dashboard not ready yet");
+              }
+            }
           }
           return;
         }
@@ -539,6 +623,260 @@ const Workspace = () => {
       setLoadingTip("");
     } catch (error) {
       messageApi.error("Deploy model failed");
+      setLoading(false);
+      setLoadingTip("");
+    }
+  };
+
+  const handleTrainModel = async (model_id: string, model_name?: string) => {
+    if (!deviceInfo?.ip) {
+      messageApi.error("Device not connected");
+      return;
+    }
+
+    try {
+      console.info("train:start", { model_id, model_name });
+      setLoading(true);
+      let classesCsv: string | null = null;
+      let classesList: string[] | null = null;
+      let resolvedModelName = model_name;
+      let trainDeviceType: number | null = null;
+      let trainTaskId: number | null = null;
+      setLoadingTip("Getting model info");
+      console.info("train:step:get_model_info:start", { model_id });
+      console.info("train:step:get_model_info:request", {
+        url: `${import.meta.env.VITE_SENSECRAFT_TRAIN_API_URL}/v2/api/get_model`,
+        params: { model_id },
+      });
+      const infoResp = await getModelV2Api(model_id);
+      console.info("train:step:get_model_info:done", infoResp);
+      trainDeviceType = infoResp.data?.device_type ?? null;
+      trainTaskId = infoResp.data?.task_id ?? null;
+      const classes = infoResp.data?.classes ?? infoResp.data?.metadata?.classes;
+      if (Array.isArray(classes) && classes.length > 0) {
+        classesList = classes;
+        classesCsv = classes.join(",");
+      }
+      if (!resolvedModelName) {
+        const displayName = infoResp.data?.display_name;
+        const displayExt = infoResp.data?.display_ext;
+        if (displayName && displayExt) {
+          resolvedModelName = `${displayName}.${displayExt}`;
+        } else if (displayName) {
+          resolvedModelName = displayName;
+        }
+      }
+      console.info("train:model_info_v2", {
+        model_id,
+        resolvedModelName,
+        device_type: trainDeviceType,
+        task_id: trainTaskId,
+        classes: classesList,
+      });
+
+      if (trainDeviceType && trainDeviceType !== 40) {
+        setLoading(false);
+        setLoadingTip("");
+        await modal.confirm({
+          title: "Device type mismatch",
+          content:
+            "The selected model was trained for a different device type. Please choose a reCamera (device_type=40) model.",
+          okText: "OK",
+          cancelButtonProps: { style: { display: "none" } },
+        });
+        return;
+      }
+
+      setLoadingTip("Getting model");
+      console.info("train:step:get_model:start", {
+        model_id,
+        task_id: trainTaskId,
+        device_type: trainDeviceType,
+      });
+      console.info("train:step:get_model:request", {
+        url: `${import.meta.env.VITE_SENSECRAFT_TRAIN_API_URL}/v1/api/get_model`,
+        params: {
+          model_id,
+          task_id: trainTaskId ?? undefined,
+          device_type: trainDeviceType ?? undefined,
+        },
+      });
+      const blob = await getModelApi(model_id, {
+        task_id: trainTaskId ?? undefined,
+        device_type: trainDeviceType ?? undefined,
+      });
+      console.info("train:step:get_model:done", {
+        size: blob.size,
+        type: blob.type,
+      });
+      if (blob.type && blob.type.includes("text/html")) {
+        try {
+          const html = await blob.text();
+          console.warn("train:get_model:html_response", html.slice(0, 500));
+        } catch (error) {
+          console.warn("train:get_model:html_parse_failed", error);
+        }
+      }
+
+      // 上传模型到设备
+      setLoadingTip("Uploading model to device");
+      const formData = new FormData();
+      const fileName = resolvedModelName
+        ? `${resolvedModelName}.cvimodel`
+        : `${model_id}.cvimodel`;
+      formData.append("model_file", blob, fileName);
+
+      // 创建简单的模型信息
+      const modelInfo = {
+        model_id: model_id,
+        model_name: resolvedModelName || model_id,
+        ...(classesList ? { classes: classesList } : {}),
+      };
+      formData.append("model_info", JSON.stringify(modelInfo));
+      console.info("train:upload_model", {
+        model_id,
+        model_name: modelInfo.model_name,
+        classes: classesList,
+        model_info: modelInfo,
+      });
+
+      console.info("train:step:upload_model:start", { model_id });
+      const uploadController = new AbortController();
+      uploadAbortRef.current = uploadController;
+      const uploadNoticeKey = "train-upload";
+      messageApi.open({
+        key: uploadNoticeKey,
+        type: "warning",
+        duration: 0,
+        content:
+          "Uploading model… You may cancel, but it can leave partial files on device.",
+        btn: (
+          <Button
+            size="small"
+            onClick={() => {
+              modal.confirm({
+                title: "Cancel upload?",
+                content:
+                  "Canceling may leave partial model files on the device. You may need to re-upload or reboot.",
+                okText: "Cancel Upload",
+                cancelText: "Continue",
+                onOk: () => {
+                  uploadAbortRef.current?.abort();
+                  messageApi.destroy(uploadNoticeKey);
+                  messageApi.warning(
+                    "Upload canceled. Please re-upload if needed."
+                  );
+                },
+              });
+            }}
+          >
+            Cancel Upload
+          </Button>
+        ),
+      });
+      const slowUploadTimer = window.setTimeout(() => {
+        messageApi.warning(
+          "Uploading model is taking longer than expected. Please check device connection."
+        );
+      }, 15000);
+      const resp = await uploadModelApi(
+        formData,
+        (progress) => {
+          setLoadingTip(`Uploading model to device: ${progress.toFixed(1)}%`);
+        },
+        uploadController.signal
+      );
+      window.clearTimeout(slowUploadTimer);
+      messageApi.destroy(uploadNoticeKey);
+      if (resp.code == 0) {
+        messageApi.success("Model uploaded to device successfully");
+        console.info("train:upload_model_success", { model_id });
+        try {
+          const deviceInfoResp = await getModelInfoApi();
+          console.info("train:device_model_info", deviceInfoResp);
+        } catch (error) {
+          console.warn("train:get_device_model_info failed", error);
+        }
+
+        // 创建新的应用并同步到云端，同时更新 flow
+        setLoadingTip("Creating app and updating flow");
+        console.info("train:step:create_app:start");
+        try {
+          let flowData = DefaultFlowDataWithDashboard;
+          if (classesCsv) {
+            try {
+              const flowObj = JSON.parse(flowData);
+              if (Array.isArray(flowObj)) {
+                const updated = flowObj.map((node: Record<string, unknown>) => {
+                  if (node.type === "model") {
+                    return {
+                      ...node,
+                      classes: classesCsv,
+                      uri: "",
+                    };
+                  }
+                  return node;
+                });
+                flowData = JSON.stringify(updated);
+              }
+            } catch (error) {
+              console.warn("train:update_flow_classes_failed", error);
+            }
+          }
+
+          const appNameBase = (resolvedModelName || model_id).replace(
+            /\.cvimodel$/i,
+            ""
+          );
+          const ok = await createAppAndUpdateFlow({
+            app_name: `classify_${appNameBase}`,
+            flow_data: flowData,
+            model_data: null,
+            needUpdateFlow: true,
+          });
+          console.info("train:step:create_app:done", { ok });
+
+          if (ok && deviceInfo?.ip) {
+            setLoadingTip("Waiting for dashboard");
+            console.info("train:step:wait_dashboard:start", {
+              ip: deviceInfo.ip,
+            });
+            const ready = await waitForDashboardReady(deviceInfo.ip);
+            console.info("train:step:wait_dashboard:done", { ready });
+            if (ready) {
+              sessionStorage.removeItem("sensecraft_action");
+              window.location.href = `http://${deviceInfo.ip}/#/dashboard`;
+            } else {
+              messageApi.warning("Dashboard not ready yet");
+            }
+          }
+        } catch (error) {
+          console.error("Create app/update flow error:", error);
+          // 不显示错误，因为模型已经上传成功
+        }
+      } else {
+        messageApi.error("Upload model to device failed");
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        console.warn("Train model upload aborted");
+        sessionStorage.removeItem("sensecraft_action");
+        setLoading(false);
+        setLoadingTip("");
+        return;
+      }
+      console.error("Train model error:", error);
+      if (typeof error === "string") {
+        console.error("train:error:string", error.slice(0, 500));
+      } else if (error instanceof Error) {
+        console.error("train:error:message", error.message);
+      }
+      const errorMsg =
+        error && typeof error === "object" && "msg" in error
+          ? (error as { msg?: string }).msg
+          : "Train model failed";
+      messageApi.error(errorMsg || "Train model failed");
+    } finally {
       setLoading(false);
       setLoadingTip("");
     }
@@ -871,7 +1209,7 @@ const Workspace = () => {
               savePlatformInfo();
             }
           }
-          setApplist(list);
+          // App list is now managed by ApplicationList component
           messageApi.success("Create app successful");
           setLoading(false);
           setLoadingTip("");
@@ -918,7 +1256,7 @@ const Workspace = () => {
 
       if (appInfo?.app_id != localAppInfo.app_id) {
         setTimestamp(new Date().getTime());
-        getAppList();
+        // App list is now managed by ApplicationList component
         Modal.info({
           title: "Flow has been changed",
           content: (
@@ -959,125 +1297,6 @@ const Workspace = () => {
     }
   };
 
-  const handleCreateApp = async () => {
-    try {
-      inputRef.current = "";
-      const config = {
-        title: "New Application",
-        content: (
-          <Input
-            placeholder="Please input application name"
-            maxLength={32}
-            defaultValue={inputRef.current}
-            onChange={handleInputNameChange}
-          />
-        ),
-      };
-      const confirmed = await modal.confirm(config);
-      if (confirmed) {
-        await createAppAndUpdateFlow({
-          app_name: inputRef.current,
-          needUpdateFlow: true,
-        });
-      }
-    } catch (error) {
-      messageApi.error("Create app failed");
-    }
-  };
-
-  const handleEditApp = async (appId: string) => {
-    try {
-      const currApp = applist.find((app) => app.app_id == appId);
-      if (!currApp) {
-        return;
-      }
-      inputRef.current = currApp.app_name;
-      const config = {
-        title: "Edit Application name",
-        content: (
-          <Input
-            placeholder="Please input application name"
-            maxLength={32}
-            defaultValue={inputRef.current}
-            onChange={handleInputNameChange}
-          />
-        ),
-      };
-      const confirmed = await modal.confirm(config);
-      if (confirmed) {
-        const response = await updateAppApi({
-          app_id: appId,
-          app_name: inputRef.current,
-        });
-        if (response.code == 0) {
-          currApp.app_name = inputRef.current;
-          setApplist([...applist]);
-        }
-      }
-    } catch (error) {
-      console.log(error);
-    }
-  };
-
-  const handleDeleteApp = async (app_id: string) => {
-    const app = await getAppInfo(app_id);
-    if (!app) {
-      messageApi.error("App is not exist");
-      getAppList();
-      return;
-    }
-    const config = {
-      title: `Are you sure to delete ${app.app_name}`,
-      content: (
-        <div>
-          <p className="mb-16">
-            You are about to permanently delete this project. This action cannot
-            be undone.
-          </p>
-          <p>
-            Please ensure that you have backed up any essential information
-            before proceeding. Are you sure you want to continue with the
-            deletion?
-          </p>
-        </div>
-      ),
-      okButtonProps: {
-        type: "primary",
-        danger: true,
-      } as ButtonProps,
-      okText: "Delete",
-    };
-    const confirmed = await modal.confirm(config);
-    if (confirmed) {
-      const response = await deleteAppApi({ app_id: app.app_id });
-      if (response.code == 0) {
-        const model_data = app.model_data;
-        //如果是本地模型。则把本地模型在云端的存储也删掉
-        if (model_data?.model_id == "0") {
-          const model_name = model_data.model_name;
-          const file_name = `${model_name}_${app.app_id}`;
-          //异步删除就好，不需要考虑结果
-          removeFileApi(file_name);
-        }
-
-        const updatedAppList = applist.filter(
-          (item) => item.app_id !== app.app_id
-        );
-        setApplist(updatedAppList);
-        // 如果删除的是当前应用则切换为第一个应用
-        if (app.app_id == appInfo?.app_id) {
-          syncCloudAppToLocal(updatedAppList[0]?.app_id);
-        }
-      }
-    }
-  };
-
-  const handleSelectApp = async (app_id: string) => {
-    if (app_id != appInfo?.app_id) {
-      await syncCloudAppToLocal(app_id);
-    }
-  };
-
   const handleLogout = async () => {
     const config = {
       title: "Are you sure to log out?",
@@ -1105,16 +1324,10 @@ const Workspace = () => {
     }
   };
 
-  const handleInputNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    inputRef.current = e.target.value;
-  };
-
-  const handleFocusApp = async (appId: string) => {
-    setFocusAppid(appId);
-  };
-
-  const handleBlurApp = async () => {
-    setFocusAppid("");
+  const handleSelectApp = async (app_id: string) => {
+    if (app_id != appInfo?.app_id) {
+      await syncCloudAppToLocal(app_id);
+    }
   };
 
   const handleCollapseExpand = () => {
@@ -1258,123 +1471,67 @@ const Workspace = () => {
             </div>
           )}
           {token ? (
-            <Spin spinning={appListLoading || userInfoLoading}>
-              <div className="flex flex-col">
-                <div className="flex justify-between mb-12">
-                  <div className="text-20 font-semibold">My Application</div>
-                  <PlusCircleOutlined
-                    className="text-primary text-20"
-                    onClick={handleCreateApp}
-                  />
-                </div>
-
-                <div className="flex flex-col">
-                  <div className="h-200 overflow-y-auto">
-                    {applist?.length > 0 &&
-                      applist.map((app, index) =>
-                        appInfo?.app_id == app.app_id ? (
-                          <div key={index} className="flex mb-10 mr-6 h-40">
-                            <div
-                              className="flex flex-1 text-14 text-primary border border-primary rounded-4 p-8"
-                              onMouseEnter={() => handleFocusApp(app.app_id)}
-                              onMouseLeave={() => handleBlurApp()}
-                            >
-                              <div
-                                className="flex flex-1 font-medium cursor-pointer overflow-hidden text-ellipsis whitespace-nowrap"
-                                onClick={() => handleSelectApp(app.app_id)}
-                              >
-                                {app.app_name}
-                              </div>
-                              <div
-                                className={`flex ${
-                                  focusAppid == app.app_id ? "flex" : "hidden"
-                                }`}
-                              >
-                                <EditOutlined
-                                  className="mr-5 ml-5 pt-5 pb-5"
-                                  onClick={() => handleEditApp(app.app_id)}
-                                />
-                                {applist.length > 1 && (
-                                  <DeleteOutlined
-                                    className="pt-5 pb-5"
-                                    onClick={() => handleDeleteApp(app.app_id)}
-                                  />
-                                )}
-                              </div>
-                            </div>
-
-                            {syncing && (
-                              <SyncOutlined
-                                className="text-disable ml-10 mr-15 text-20"
-                                spin
-                              />
-                            )}
-                          </div>
-                        ) : (
-                          <div
-                            key={index}
-                            className="flex mb-10 mr-6 h-30 text-12 bg-background text-text border border-disable rounded-4 px-8"
-                            onMouseEnter={() => handleFocusApp(app.app_id)}
-                            onMouseLeave={() => handleBlurApp()}
-                          >
-                            <div
-                              className="flex flex-1 items-center cursor-pointer overflow-hidden text-ellipsis whitespace-nowrap"
-                              onClick={() => handleSelectApp(app.app_id)}
-                            >
-                              {app.app_name}
-                            </div>
-                            <div
-                              className={`flex ${
-                                focusAppid == app.app_id ? "flex" : "hidden"
-                              }`}
-                            >
-                              <EditOutlined
-                                className="mr-5 ml-5 pt-5 pb-5"
-                                onClick={() => handleEditApp(app.app_id)}
-                              />
-                              {applist.length > 1 && (
-                                <DeleteOutlined
-                                  className="pt-5 pb-5"
-                                  onClick={() => handleDeleteApp(app.app_id)}
-                                />
-                              )}
-                            </div>
-                          </div>
-                        )
-                      )}
-                  </div>
-
-                  <div>
-                    <div className="text-text text-12 mt-10 mb-10">
-                      reCamera can only run 1 application at a time
+            <div className="flex flex-col h-full">
+              <Spin spinning={userInfoLoading}>
+                <Tabs
+                  activeKey={activeTab}
+                  onChange={setActiveTab}
+                  items={[
+                    {
+                      key: "application",
+                      label: "My Application",
+                      children: (
+                        <ApplicationList
+                          onSelectApp={handleSelectApp}
+                          onSyncApp={syncCloudAppToLocal}
+                          onCreateAppAndUpdateFlow={createAppAndUpdateFlow}
+                          syncing={syncing}
+                          messageApi={messageApi}
+                          modal={modal}
+                        />
+                      ),
+                    },
+                    {
+                      key: "model",
+                      label: "Model Conversion",
+                      children: (
+                        <ModelConversion
+                          setLoading={setLoading}
+                          setLoadingTip={setLoadingTip}
+                          messageApi={messageApi}
+                          modal={modal}
+                        />
+                      ),
+                    },
+                  ]}
+                />
+              </Spin>
+              <div className="mt-auto pt-8">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center">
+                    <div className="flex justify-center items-center w-48 h-48 bg-primary rounded-24">
+                      <UserOutlined className="text-white text-28" />
                     </div>
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center">
-                        <div className="flex justify-center items-center w-48 h-48 bg-primary rounded-24">
-                          <UserOutlined className="text-white text-28" />
-                        </div>
-                        <div className="ml-10 max-w-98 overflow-hidden text-ellipsis whitespace-nowrap">
-                          {nickname}
-                        </div>
-                      </div>
-
-                      <ConfigProvider
-                        theme={{
-                          components: {
-                            Button: {
-                              defaultHoverBorderColor: "#ff4d4f",
-                              defaultHoverColor: "#ff4d4f",
-                            },
-                          },
-                        }}
-                      >
-                        <Button onClick={handleLogout}>Log out</Button>
-                      </ConfigProvider>
+                    <div className="ml-10 max-w-98 overflow-hidden text-ellipsis whitespace-nowrap">
+                      {nickname}
                     </div>
                   </div>
+
+                  <ConfigProvider
+                    theme={{
+                      components: {
+                        Button: {
+                          defaultHoverBorderColor: "#ff4d4f",
+                          defaultHoverColor: "#ff4d4f",
+                        },
+                      },
+                    }}
+                  >
+                    <Button onClick={handleLogout}>Log out</Button>
+                  </ConfigProvider>
                 </div>
               </div>
-            </Spin>
+            </div>
           ) : (
             <div className="flex-1 flex items-end">
               <Button
