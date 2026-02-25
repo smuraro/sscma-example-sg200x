@@ -8,13 +8,13 @@ extern "C" {
 // Enabled sensors
 #define SNS0_OV_OV5647
 //#define SNS0_SMS_SC530AI_2L
-#define SNS0_GCORE_GC2053
+#define SNS0_GCORE_GC2083
 
 
 extern ISP_SNS_OBJ_S stSnsOv5647_Obj;
 // extern ISP_SNS_OBJ_S stSnsSC530AI_2L_Obj;
 // extern ISP_SNS_OBJ_S stSnsSC531AI_2L_Obj;
-extern ISP_SNS_OBJ_S stSnsGc2053_Obj;
+extern ISP_SNS_OBJ_S stSnsGc2083_Obj;
 
 typedef enum _SENSOR_TYPE_E {
     SENSOR_NONE,
@@ -22,6 +22,7 @@ typedef enum _SENSOR_TYPE_E {
     SENSOR_GCORE_GC2053,
     SENSOR_GCORE_GC2053_1L,
     SENSOR_GCORE_GC2053_SLAVE,
+    SENSOR_GCORE_GC2083,
     SENSOR_GCORE_GC2093,
     SENSOR_GCORE_GC2093_SLAVE,
     SENSOR_GCORE_GC4653,

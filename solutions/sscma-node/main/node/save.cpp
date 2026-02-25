@@ -8,7 +8,7 @@
 
 // Default folders for saving
 #ifndef NODE_SAVE_PATH_LOCAL
-#define NODE_SAVE_PATH_LOCAL "/userdata/Videos/"
+#define NODE_SAVE_PATH_LOCAL "/root/Videos/"
 #endif
 
 #ifndef NODE_SAVE_PATH_EXTERNAL
@@ -16,7 +16,7 @@
 #endif
 
 #ifndef NODE_IMAGE_PATH_LOCAL
-#define NODE_IMAGE_PATH_LOCAL "/userdata/Images/"
+#define NODE_IMAGE_PATH_LOCAL "/root/Images/"
 #endif
 
 #ifndef NODE_IMAGE_PATH_EXTERNAL

@@ -7,12 +7,12 @@ readonly STR_FAILED="Failed"
 # conf
 readonly ISSUE_FILE="/etc/issue"
 readonly HOSTNAME_FILE="/etc/hostname"
-readonly USER_NAME="recamera"
+readonly USER_NAME="root"
 readonly CONFIG_DIR="/etc/recamera.conf"
 readonly CONF_UPGRADE="$CONFIG_DIR/upgrade"
 
 # userdata
-readonly USERDATA_DIR="/userdata"
+readonly USERDATA_DIR="/root"
 readonly MODEL_DIR="$USERDATA_DIR/Models"
 readonly MODELS_PRESET="/usr/share/supervisor/models"
 
@@ -20,7 +20,7 @@ readonly MODELS_PRESET="/usr/share/supervisor/models"
 _check_flow() {
     local src_flow="/usr/share/supervisor/flows.json"
     local src_flow_gimbal="/usr/share/supervisor/flows_gimbal.json"
-    local dst_flow="/home/recamera/.node-red/flows.json"
+    local dst_flow="/root/.node-red/flows.json"
 
     [[ ! -f "$dst_flow" ]] && {
         [ -n "$(ifconfig can0 2>/dev/null | grep "HWaddr")" ] && {
@@ -279,8 +279,9 @@ function api_device() {
     local emmc=$(lsblk -b | grep -w mmcblk0 | awk '{print $4}')
     emmc=${emmc:-0}
     local sensor=0
-    [[ -n "$(i2cdetect -y -r 2 36 36 | grep 36)" ]] && sensor=1
-    [[ -n "$(i2cdetect -y -r 2 3f 3f | grep 3f)" ]] && sensor=2
+    [[ -n "$(i2cdetect -y -r 3 37 37 | grep 37)" ]] && sensor=1
+    [[ -n "$(i2cdetect -y -r 2 36 36 | grep 36)" ]] && sensor=2
+
 
     cat <<EOF
 {
@@ -310,7 +311,7 @@ EOF
 
 ##################################################
 # user
-readonly SSH_DIR="/home/$USER_NAME/.ssh"
+readonly SSH_DIR="/root/.ssh"
 readonly SSH_KEY_FILE="$SSH_DIR/authorized_keys"
 readonly FIRST_LOGIN="/etc/.first_login"
 readonly DIR_INID="/etc/init.d"

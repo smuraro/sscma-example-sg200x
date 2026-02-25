@@ -8,7 +8,7 @@
 
 class api_file : public api_base {
 private:
-    static inline std::string _local_dir = "/userdata";
+    static inline std::string _local_dir = "/root";
     static inline std::string _sd_dir    = "/mnt/sd";
 
     // Check if SD card is available

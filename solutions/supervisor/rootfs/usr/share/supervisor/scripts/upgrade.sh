@@ -12,7 +12,7 @@ RECV_PART=/dev/mmcblk0p5
 ROOTFS=/dev/mmcblk0p3
 ROOTFS_B=/dev/mmcblk0p4
 
-UPGRADE_TMP=/userdata/.upgrade
+UPGRADE_TMP=/root/.upgrade
 UPGRADE_FILES=/tmp/upgrade
 mkdir -p "$UPGRADE_FILES" "$UPGRADE_TMP"
 
