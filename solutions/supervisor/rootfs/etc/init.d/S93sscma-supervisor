@@ -4,7 +4,7 @@ DAEMON=supervisor
 DAEMON_PATH=/usr/local/bin
 
 JOYSTICK_SRC="/usr/share/supervisor/nipplejs.min.js"
-JOYSTICK_DIR="/home/recamera/.node-red/public"
+JOYSTICK_DIR="/root/.node-red/public"
 if [ -f $JOYSTICK_SRC ]; then
     mkdir -p "$JOYSTICK_DIR"
     cp -f "$JOYSTICK_SRC" "$JOYSTICK_DIR/"
