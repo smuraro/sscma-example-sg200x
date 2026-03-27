@@ -43,9 +43,9 @@ export const passwordRules = [
   { required: true, message: "Please input Password" },
   {
     pattern:
-      /^(?=.*[0-9])(?=.*[a-zA-Z])(?=.*[~`!@#$%^&*()_+={}\\|/,.])[0-9a-zA-Z~`!@#$%^&*()_+={}\\|/,.]{8,32}$/,
+      /^(?=.*[0-9])(?=.*[a-zA-Z])(?=.*[~`!@#$%^&*()_+={}\\|/,.])[0-9a-zA-Z~`!@#$%^&*()_+={}\\|/,.]{5,32}$/,
     message:
-      "Password must be 8 to 32 characters and include letters, numbers, and symbols.",
+      "Password must be 5 to 32 characters and include letters, numbers, and symbols.",
   },
 ];
 
