@@ -3,4 +3,5 @@ build/
 install/
 *.a
 *.so
-.claude/settings.json
+.claude/
+python/
