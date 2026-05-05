@@ -30,6 +30,22 @@ check_avahi() {
 }
 check_avahi
 
+# Espera wlan0 aparecer (até 30s) ANTES de subir o supervisor. Sem isso,
+# getPingConfig/get_sta_current disparam wpa_cli no wlan0 inexistente e
+# batem timeout de 30s no popen do supervisor (api_base.h).
+#
+# wlan0 só aparece ~22s pós-boot via duo-init.sh (S99). Como o S93
+# roda antes (~7s), o wait DEVE ir em background — caso contrário
+# trava a sequência S94+ por 30s. O supervisor real sobe quando o
+# subshell termina o wait; o init.d retorna imediato.
+wait_for_wlan0() {
+    i=0
+    while [ ! -e /sys/class/net/wlan0 ] && [ $i -lt 60 ]; do
+        sleep 0.5
+        i=$((i+1))
+    done
+}
+
 start() {
     printf 'Starting Supervisor Service: '
     PID="$(pidof $DAEMON)"
@@ -37,8 +53,8 @@ start() {
     if [ "$PID" ]; then
         echo "$DAEMON is already running."
     else
-        $DAEMON_PATH/$DAEMON >/dev/null 2>&1 &
-        [ $? = 0 ] && echo "OK" || echo "FAIL"
+        ( wait_for_wlan0; $DAEMON_PATH/$DAEMON ) >/dev/null 2>&1 &
+        echo "OK (waiting wlan0)"
     fi
 }
 
